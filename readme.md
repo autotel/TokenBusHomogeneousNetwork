@@ -18,11 +18,14 @@ nodes are the pseudonym for the units that run a program that lets them particip
 * The TIP is pulled to the state 1, causing the first in line to start the chain reaction from 0. When a node is on Connecting mode, if it detects 1 on its TIP, and has not registered any address, it means that there is no lower module. It will set it's own address to 0. Maybe it is convenient if it waits about 10 bytes before doing so, in case the network is on some weird stuck state.
 #### Token logic and the node 0
 * Node number 0 has the role of originating a new token when the token has reached the last module in the token line. It reads the end of the token line when there is a message with disconnected header; or in other words, a timeout.
+* last node could detect nothing connected and notify that to the node zero so it doesnmt have to wait for timeout.
 ###Messages
 * a message consists of the following components: <origin><header><payload>
 * origin is a byte representing a unique identifier that indicates what module has broadcasted that message.
 * header is a byte that indicates the mode of the upcoming data. It is divided in two nibbles: first nibble indicates the mode of the message (broadcasted, addressed, empty, offline). The second nibble indicates the length of the upcoming message in words. The maximum message length is 16*4 bytes. Maybe if the second nibble is F, the listeners will wait for a special termination byte.
 * an offline header is equivalent to a disconnected module. The idea is that a module that is offline or not connected, will generate an offline header by not sending anything. You can also think of this as a timeout of the length of a single byte.
+#practicalities
+##connection
 
 ```
 -----\         /---------------->
@@ -34,4 +37,12 @@ nodes are the pseudonym for the units that run a program that lets them particip
 ------------|----------bus------->
 
 ```
+TI is input with internal pullup, and the logic is direct (not inverse) meaning that it defaults to 1
+#development
+##step 1: common bus working
+set up three arduinos, all connected to the same bus. Test that it is possible to address each individual arduino in the network by a hard coded address, and that the arduino can respond with his own ID plus a string.
+##step 2: Automatic address assignation
+the arduinos are tied with the TI and TO connections. One single arduino is set to reflect in the serial all the signals that happen in the common bus. After the automatic address assignation, the arduino that is connected to the serial should be able to address individually each arduino as in the previous step
+##step 3: Automatic token
+The arduinos should start their activity without input from the node that is connected to the serial.
 

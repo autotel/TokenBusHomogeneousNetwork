@@ -1,21 +1,21 @@
-#Token based hybrid network, Work in progress
+# Token based hybrid network, Work in progress
 
 The idea here is to build a protocol that can work over RS485 and any bus in general.
 The network is set out to allow the following:
 * Any node can broadcast information to all the other nodes directly.
 * Define automatically a Master, or not have a Master at all.
 
-##Definition of the protocol
+## Definition of the protocol
 
 To achieve this, I will take an approach that is a hybrid between Token ring and bus polling.
 
-###Nodes
+### Nodes
 
 nodes are the pseudonym for the units that run a program that lets them participate in the bus with the protocol. Most probably, an MCU.
 
 * Each node has a token input (TIP) pin and a token output (TOP) pin (later a single pin can fulfill both functions (TP)). Also a common bus pin named COM.
 
-####States
+#### States
 
 * Each module has three states: Listening, Broadcasting and Connecting.
 * On Listening state any normal node is on high impedance mode, reading the serial. On Listening state, the node is also reading the TIP pin. If TIP pin is set to 1, it switches to Broadcasting state.
@@ -30,16 +30,16 @@ nodes are the pseudonym for the units that run a program that lets them particip
 * Node number 0 has the role of originating a new token when the token has reached the last module in the token line. It reads the end of the token line when there is a message with disconnected header; or in other words, a timeout.
 * last node could detect nothing connected and notify that to the node zero so it doesnmt have to wait for timeout.
 
-###Messages
+### Messages
 
 * a message consists of the following components: <origin><header><payload>
 * origin is a byte representing a unique identifier that indicates what module has broadcasted that message.
 * header is a byte that indicates the mode of the upcoming data. It is divided in two nibbles: first nibble indicates the mode of the message (broadcasted, addressed, empty, offline). The second nibble indicates the length of the upcoming message in words. The maximum message length is 16*4 bytes. Maybe if the second nibble is F, the listeners will wait for a special termination byte.
 * an offline header is equivalent to a disconnected module. The idea is that a module that is offline or not connected, will generate an offline header by not sending anything. You can also think of this as a timeout of the length of a single byte.
 
-#practicalities
+# practicalities
 
-##connection
+## connection
 
 
 ```
@@ -55,26 +55,26 @@ nodes are the pseudonym for the units that run a program that lets them particip
 
 TI is input with internal pullup, and the logic is direct (not inverse) meaning that it defaults to 1
 
-#development
+# development
 
-##step 1: common bus working
+## step 1: common bus working
 
 set up three arduinos, all connected to the same bus. Test that it is possible to address each individual arduino in the network by a hard coded address, and that the arduino can respond with his own ID plus a string.
 
-##step 2: Automatic address assignation
+## step 2: Automatic address assignation
 
 the arduinos are tied with the TI and TO connections. One single arduino is set to reflect in the serial all the signals that happen in the common bus. After the automatic address assignation, the arduino that is connected to the serial should be able to address individually each arduino as in the previous step
 
-##step 3: Automatic token
+## step 3: Automatic token
 
 The arduinos should start their activity without input from the node that is connected to the serial. The message length is fixed. The activity can be seen in the serial output of one of the nodes.
 
-##step 4: A node can be added or removed without compromising the network
+## step 4: A node can be added or removed without compromising the network
 
-##step 5: Message length is defined in the header
+## step 5: Message length is defined in the header
 
-##step 6: Pack the protocol into a library
+## step 6: Pack the protocol into a library
 
-##step 7: Messages with undefined length, finished with a message terminator
+## step 7: Messages with undefined length, finished with a message terminator
 
 

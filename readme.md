@@ -1,4 +1,5 @@
 #Token based hybrid network, Work in progress
+
 The idea here is to build a protocol that can work over RS485 and any bus in general.
 The network is set out to allow the following:
 * Any node can broadcast information to all the other nodes directly.
@@ -28,13 +29,13 @@ nodes are the pseudonym for the units that run a program that lets them particip
 ##connection
 
 ```
------\         /---------------->
-      \       /
-    |-TI-----TO---|
-    |    node     |
-    |------COM----|
-            |
-------------|----------bus------->
+-----\         /---------------\         /---------------\         /---------->
+      \       /                 \       /                 \       /           
+    |-TI-----TO---|           |-TI-----TO---|           |-TI-----TO---|       
+    |    node     |           |    node     |           |    node     |       
+    |-----COM-----|           |-----COM-----|           |-----COM-----|       
+           |                         |                         |              
+-----------|-----------bus-----------|-------------------------|-------------->
 
 ```
 TI is input with internal pullup, and the logic is direct (not inverse) meaning that it defaults to 1
@@ -44,5 +45,9 @@ set up three arduinos, all connected to the same bus. Test that it is possible t
 ##step 2: Automatic address assignation
 the arduinos are tied with the TI and TO connections. One single arduino is set to reflect in the serial all the signals that happen in the common bus. After the automatic address assignation, the arduino that is connected to the serial should be able to address individually each arduino as in the previous step
 ##step 3: Automatic token
-The arduinos should start their activity without input from the node that is connected to the serial.
+The arduinos should start their activity without input from the node that is connected to the serial. The message length is fixed. The activity can be seen in the serial output of one of the nodes.
+##step 4: A node can be added or removed without compromising the network
+##step 5: Message length is defined in the header
+##step 6: Pack the protocol into a library
+##step 7: Messages with undefined length, finished with a message terminator
 

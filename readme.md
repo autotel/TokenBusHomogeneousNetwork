@@ -74,6 +74,11 @@ the arduinos are tied with the TI and TO connections. One single arduino is set 
 
 The arduinos should start their activity without input from the node that is connected to the serial. The message length is fixed. The activity can be seen in the serial output of one of the nodes.
 
+* The testing showed that I can send 43.5 messages of 8 bytes per second (the Fq of the TOP of one device was 14.5 Hz, and there were three devices on the bus)
+* The payload is 6 bytes.
+* The bus shows that there is room for duplicating the message rate, and if I can also get it working at higher baud rates, I could get some extra room aswell.
+* message rate should be enough to connect enough modules if only one is going to be sending a 12 ppqn clock.
+
 ## step 4: A node can be added or removed without compromising the network
 
 ## step 5: Message length is defined in the header
@@ -81,5 +86,7 @@ The arduinos should start their activity without input from the node that is con
 ## step 6: Pack the protocol into a library
 
 ## step 7: Messages with undefined length, finished with a message terminator
+
+
 
 

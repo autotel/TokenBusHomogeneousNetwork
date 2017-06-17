@@ -1,7 +1,7 @@
 #include "SendOnlySoftwareSerial.h"
 #include "ReceiveOnlySoftwareSerial.h"
 
-#define tokenTimeout 20
+#define tokenTimeout 15
 #define BAUDRATE 9600
 
 
@@ -52,8 +52,8 @@ unsigned char tentativeID=0;
 long initWaitStarted=0;
 
 //last received message
-unsigned char msgLen=4;
-unsigned char incom[4];
+unsigned char msgLen=8;
+unsigned char incom[8];
 //how long to wait until the message is considered to be truncated (only part of the message arrived)
 #define truncateTimeout 10
 
@@ -168,7 +168,7 @@ void loop(){
       digitalWrite(LISTENSTATEDEBUGPIN,LOW);
       outputMode();
 
-      unsigned char buf[]={ownID,H_BROADCASTED,testByte,testByte};
+      unsigned char buf[]={ownID,H_BROADCASTED,testByte,testByte,testByte,testByte,testByte,testByte};
       comTX.write(buf, sizeof(buf));
 
       inputMode();

@@ -1,9 +1,9 @@
 #include "SendOnlySoftwareSerial.h"
 #include "ReceiveOnlySoftwareSerial.h"
 
-#define tokenTimeout 10
+#define tokenTimeout 20
 
-long lastMessage=0;
+long lastMessageAt=0;
 
 //states
 #define S_CONNECTING 0
@@ -39,6 +39,8 @@ unsigned char s_current=S_CONNECTING;
   #define SERIALDEBUG true
 #endif
 
+
+
 SendOnlySoftwareSerial    comTX = SendOnlySoftwareSerial(COMPIN);
 ReceiveOnlySoftwareSerial comRX = ReceiveOnlySoftwareSerial(COMPIN);
 
@@ -47,8 +49,18 @@ unsigned char ownID=0;
 unsigned char tentativeID=0;
 long initWaitStarted=0;
 
+//last received message
+unsigned char msgLen=4;
+unsigned char incom[4];
+//how long to wait until the message is considered to be truncated (only part of the message arrived)
+#define truncateTimeout 10
+
 void setup(){
 
+  incom[0]=0;
+  incom[1]=0;
+  incom[2]=0;
+  incom[3]=0;
 
   //TIP LOW=hesitate
   //TIP HIGH=transmit/get address
@@ -103,7 +115,7 @@ void loop(){
           comTX.write(ownID);
           inputMode();
           digitalWrite(TOP,HIGH);
-          lastMessage=millis();
+          lastMessageAt=millis();
           s_current=S_LISTENING;
           #if SERIALDEBUG
             Serial.print("\ndefinitiveID: ");
@@ -111,8 +123,8 @@ void loop(){
           #endif
         }
       }else{
-        if( comRX.available() ){
-          unsigned char vid=((unsigned char)(comRX.read())) + 1;
+        if(listen()){
+          unsigned char vid=((unsigned char)(incom[0])) + 1;
           if(vid>tentativeID)
             tentativeID = vid;
           #if SERIALDEBUG
@@ -125,7 +137,7 @@ void loop(){
     }
     case S_LISTENING:{
       digitalWrite(LISTENSTATEDEBUGPIN,HIGH);
-      if(millis()>lastMessage+(2*tokenTimeout)){
+      if(millis()>lastMessageAt+(2*tokenTimeout)){
         digitalWrite(TOP,LOW);
         if(ownID==0){
           s_current=S_BROADCASTING;
@@ -136,24 +148,8 @@ void loop(){
           s_current=S_BROADCASTING;
         }
       }
-      if( comRX.available() ){
-        lastMessage=millis();
-        #if SERIALDEBUG
-          Serial.print("\n rx:");
-        #endif
-        while(comRX.available()){
-          digitalWrite(TOP,LOW);
-          int i = (unsigned char)(comRX.read());
-          #if SERIALDEBUG
-            Serial.print(String(i,DEC));
-            Serial.write(' ');
-          #else
-            if( i == ownID ){
-              s_current=S_BROADCASTING;
-              digitalWrite(DEBUGPIN,HIGH);
-            }
-          #endif
-        }
+      if(listen()){
+        testByte=(incom[2]+1)%35;
       }
       #if SERIALDEBUG
         if( Serial.available()){
@@ -172,19 +168,55 @@ void loop(){
       comTX.write(ownID);
       comTX.write(H_BROADCASTED);
       comTX.write(testByte);
+      comTX.write(testByte);
       inputMode();
       s_current=S_LISTENING;
       // delay(100);
       #if SERIALDEBUG
-        Serial.print("\nTX: ");
+        Serial.print("\nTX. \n");
       #endif
 
       digitalWrite(DEBUGPIN,LOW);
       digitalWrite(TOP,HIGH);
-      lastMessage=millis();
+      lastMessageAt=millis();
       break;
     }
   }
+}
+
+bool listen(){
+  if( comRX.available() ){
+    digitalWrite(TOP,LOW);
+    //actually only the node zero needs to car about lat message time
+    lastMessageAt=millis();
+    //truncated message timeout mechanism
+    long messageStartedAt=millis();
+    unsigned char incomCount=0;
+    #if SERIALDEBUG
+      Serial.print(" rx: ");
+    #endif
+    while(incomCount<msgLen){
+      //TODO:
+      //if incomCount==1; msgLen= the len part of the message
+      if(comRX.available()){
+        int i = (unsigned char)(comRX.read());
+        incom[incomCount]=i;
+        #if SERIALDEBUG
+          Serial.print(String(i,DEC));
+          Serial.write(' ');
+        #endif
+        incomCount++;
+      }
+      if(millis()>messageStartedAt+truncateTimeout){
+        #if SERIALDEBUG
+          Serial.print("truncated");
+        #endif
+        return false;
+      }
+    }
+    return true;
+  }
+  return false;
 }
 
 void outputMode(){

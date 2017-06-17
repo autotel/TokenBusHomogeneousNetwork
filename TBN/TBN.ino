@@ -125,9 +125,14 @@ void loop(){
     }
     case S_LISTENING:{
       digitalWrite(LISTENSTATEDEBUGPIN,HIGH);
-      if(millis()>lastMessage+tokenTimeout){
+      if(millis()>lastMessage+(2*tokenTimeout)){
         digitalWrite(TOP,LOW);
         if(ownID==0){
+          s_current=S_BROADCASTING;
+        }
+      }
+      if(digitalRead(TIP)){
+        if(ownID!=0){
           s_current=S_BROADCASTING;
         }
       }

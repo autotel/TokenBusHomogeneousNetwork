@@ -1,6 +1,7 @@
 # Token based hybrid network, Work in progress
 
-The idea here is to build a protocol that can work over RS485 and any bus in general.
+The idea here is to build a protocol that can work over RS485 and any bus in general. Currently it is being developed using versions of softwareSerial, but hacked to work as common bus.
+
 The network is set out to allow the following:
 * Any node can broadcast information to all the other nodes directly.
 * Define automatically a Master, or not have a Master at all.
@@ -51,9 +52,13 @@ nodes are the pseudonym for the units that run a program that lets them particip
            |                         |                         |              
 -----------|-----------bus-----------|-------------------------|-------------->
 
+
+<-- "left or previous"  "right or next"-->
 ```
 
 TI is input with internal pullup, and the logic is direct (not inverse) meaning that it defaults to 1
+
+For easier commenting, in the code, modules are said to be on the left or right. This corresponds to the hierarchical connection of the ti/to. A module on the left is the one whose TOP is connected to the node's TIP in question. A node on the right, (also refered as the next node) is the one whose TIP is connected to the node's TOP in question.
 
 # development
 

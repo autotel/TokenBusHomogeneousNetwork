@@ -2,6 +2,8 @@
 #include "ReceiveOnlySoftwareSerial.h"
 
 #define tokenTimeout 20
+#define BAUDRATE 9600
+
 
 long lastMessageAt=0;
 
@@ -165,15 +167,15 @@ void loop(){
     case S_BROADCASTING:{
       digitalWrite(LISTENSTATEDEBUGPIN,LOW);
       outputMode();
-      comTX.write(ownID);
-      comTX.write(H_BROADCASTED);
-      comTX.write(testByte);
-      comTX.write(testByte);
+
+      unsigned char buf[]={ownID,H_BROADCASTED,testByte,testByte};
+      comTX.write(buf, sizeof(buf));
+
       inputMode();
       s_current=S_LISTENING;
       // delay(100);
       #if SERIALDEBUG
-        Serial.print("\nTX. \n");
+        Serial.print("\nTX.");
       #endif
 
       digitalWrite(DEBUGPIN,LOW);
@@ -187,33 +189,35 @@ void loop(){
 bool listen(){
   if( comRX.available() ){
     digitalWrite(TOP,LOW);
-    //actually only the node zero needs to car about lat message time
-    lastMessageAt=millis();
     //truncated message timeout mechanism
-    long messageStartedAt=millis();
     unsigned char incomCount=0;
     #if SERIALDEBUG
-      Serial.print(" rx: ");
+      Serial.print("\trx:\t");
     #endif
+    long lastByteStarted=millis();
     while(incomCount<msgLen){
       //TODO:
       //if incomCount==1; msgLen= the len part of the message
       if(comRX.available()){
+        lastByteStarted=millis();
         int i = (unsigned char)(comRX.read());
         incom[incomCount]=i;
         #if SERIALDEBUG
           Serial.print(String(i,DEC));
-          Serial.write(' ');
+          Serial.write('\t');
         #endif
         incomCount++;
       }
-      if(millis()>messageStartedAt+truncateTimeout){
+      if(millis()>lastByteStarted+truncateTimeout){
         #if SERIALDEBUG
           Serial.print("truncated");
         #endif
         return false;
       }
     }
+    //actually only the node zero needs to car about lat message time
+    lastMessageAt=millis();
+
     return true;
   }
   return false;
@@ -222,12 +226,12 @@ bool listen(){
 void outputMode(){
   comRX.end();
   pinMode(COMPIN,OUTPUT);
-  comTX.begin(9600);
+  comTX.begin(BAUDRATE);
 }
 void inputMode(){
   comTX.end();
   pinMode(COMPIN,INPUT_PULLUP);
-  comRX.begin(9600);
+  comRX.begin(BAUDRATE);
 }
 
 

@@ -2,7 +2,7 @@
 #include "SendOnlySoftwareSerial.h"
 #include "ReceiveOnlySoftwareSerial.h"
 #include "TBN.h"
-#define tokenTimeout 15
+#define tokenTimeout 30
 #define BAUDRATE 9600
 
 
@@ -15,9 +15,9 @@ long lastMessageAt=0;
 unsigned char s_current=S_CONNECTING;
 //message header first nibbles
 #define H_OFFLINE 0x00
-#define H_EMPTY 0x01
-#define H_BROADCASTED 0x02
-#define H_ADDRESSED 0x03
+#define H_EMPTY 0x10
+#define H_BROADCASTED 0x20
+#define H_ADDRESSED 0x30
 //message header second nibbles
 #define L_STRING 0X00 //if message has length zero is undefined length message or string
 //byte number roles <origin><header><payload>
@@ -51,7 +51,7 @@ http://forum.arduino.cc/index.php?topic=46426.0
   #define TOP 11
   #define DEBUGPIN 40
   #define LISTENSTATEDEBUGPIN 41
-  #define SERIALDEBUG false
+  #define SERIALDEBUG true
 #endif
 
 
@@ -62,13 +62,14 @@ unsigned char ownID=0;
 
 unsigned char tentativeID=0;
 long initWaitStarted=0;
+bool TIPhasBeenLow=false;
 
-#define MSGLEN 8
+#define MAXMSGLEN 8
 //last received message
-unsigned char incom[MSGLEN];
+unsigned char incom[MAXMSGLEN];
 
 //message to send next
-int outgo[MSGLEN];
+int outgo[MAXMSGLEN];
 
 //how long to wait until the message is considered to be truncated (only part of the message arrived)
 #define truncateTimeout 10
@@ -76,7 +77,7 @@ TBN::TBN(){
 
 }
 void TBN::start(){
-  for(unsigned char a=0; a<MSGLEN; a++){
+  for(unsigned char a=0; a<MAXMSGLEN; a++){
     incom[a]=0;
   }
 
@@ -106,12 +107,12 @@ void TBN::start(){
   //report that there is no other arduino on the left and mistakenly get the 0 address
   delay(1000);
 }
-char test=0;
-unsigned char testByte=0;
+
 void TBN::loop(){
   // long now=millis();
   switch (s_current) {
     case S_CONNECTING:{
+      digitalWrite(DEBUGPIN,HIGH);
       if(digitalRead(TIP)){
         //the node could have been connected right after a row ended. (happens easily if the network has two nodes only)
         //IN that case it would have read no address, and would have received a token, thus
@@ -121,22 +122,30 @@ void TBN::loop(){
           initWaitStarted=millis();
           digitalWrite(TOP,HIGH);
         }else if(millis()>initWaitStarted+tokenTimeout){
-          //the node detected the TOP high already and after waiting more than one timeout time, it is still/again on.
-          ownID=tentativeID;
-          outputMode();
-          comTX.write(ownID);
-          inputMode();
-          digitalWrite(TOP,HIGH);
-          lastMessageAt=millis();
-          s_current=S_LISTENING;
-          #if SERIALDEBUG
-            Serial.print("\ndefinitiveID: ");
-            Serial.print(String(tentativeID,DEC));
-          #endif
+          //to set the id, either the TOP has to never been low, or tentativeID is >0
+          if((TIPhasBeenLow&&tentativeID>0)||((!TIPhasBeenLow)&&tentativeID==0)){
+            ownID=tentativeID;
+            outputMode();
+            comTX.write(ownID);
+            inputMode();
+            digitalWrite(TOP,HIGH);
+            lastMessageAt=millis();
+            s_current=S_LISTENING;
+            digitalWrite(DEBUGPIN,LOW);
+            #if SERIALDEBUG
+              Serial.print("\ndefinitiveID: ");
+              Serial.print(String(tentativeID,DEC));
+            #endif
+          }
+          //maybe this is not necessary:
+          if(TIPhasBeenLow&&tentativeID==0){
+            initWaitStarted=0;
+          }
         }
       }else{
+        TIPhasBeenLow=true;
         if(listen()){
-          unsigned char vid=((unsigned char)(incom[0])) + 1;
+          unsigned char vid=((unsigned char)(incom[BN_ORIGIN])) + 1;
           if(vid>tentativeID)
             tentativeID = vid;
           #if SERIALDEBUG
@@ -153,6 +162,7 @@ void TBN::loop(){
         digitalWrite(TOP,LOW);
         if(ownID==0){
           s_current=S_BROADCASTING;
+          digitalWrite(DEBUGPIN,LOW);
         }
       }
       if(digitalRead(TIP)){
@@ -161,27 +171,29 @@ void TBN::loop(){
         }
       }
       if(listen()){
-        testByte=(((unsigned char) incom[BN_PAYLOAD0])+1)%35;
-        onMessage(incom[BN_ORIGIN],incom[BN_HEADER],incom[BN_PAYLOAD0],MSGLEN);
+        _onReceiveCallback(incom[BN_ORIGIN],incom[BN_HEADER],& incom[BN_PAYLOAD0],incom[BN_HEADER]&0xF);
+        // _midiInCallback(message);
       }
-      #if SERIALDEBUG
-        if( Serial.available()){
-          while(Serial.available()){
-            testByte=((unsigned char)(Serial.read())-48);
-          }
-          s_current=S_BROADCASTING;
-        }
-      #endif
+
 
       break;
     }
     case S_BROADCASTING:{
       digitalWrite(LISTENSTATEDEBUGPIN,LOW);
       outputMode();
-
-      unsigned char buf[]={ownID,H_BROADCASTED,testByte,testByte,testByte,testByte,testByte,testByte};
+      unsigned char buf[MAXMSGLEN];
+      buf[0]=ownID;
+      if(outGoBytesDue==0){
+        buf[1]=H_EMPTY;
+      }else{
+        buf[1]=H_BROADCASTED;
+        buf[1]|=outGoBytesDue&0xf;
+        for(unsigned char a=0; a<outGoBytesDue; a++){
+          buf[a+2]=outgo[a];
+        }
+        outGoBytesDue=0;
+      }
       comTX.write(buf, sizeof(buf));
-
       inputMode();
       s_current=S_LISTENING;
       // delay(100);
@@ -189,22 +201,27 @@ void TBN::loop(){
         Serial.print("\nTX.");
       #endif
 
-      digitalWrite(DEBUGPIN,LOW);
+
       digitalWrite(TOP,HIGH);
       lastMessageAt=millis();
       break;
     }
   }
 }
+void TBN::onData(void (*callback)(unsigned char,unsigned char,unsigned char *,unsigned char)){
+  _onReceiveCallback = callback;
+  // _midiInCallback = midiInCallback;
+}
 //TODO:instead of replacing the array of data, it should be appended in a circular array,
 //the device probably wants to send more than one simultaneous signal, and the protocol permits
 //n size messages.
 void TBN::write(unsigned char data [],unsigned char len){
-  for(unsigned char a=0; a<MSGLEN; a++){
-    incom[a]=0;
+  outGoBytesDue=len;
+  for(unsigned char a=0; a<MAXMSGLEN; a++){
+    outgo[a]=0;
   }
   for(unsigned char a=0; a<len; a++){
-    incom[a]=data[a];
+    outgo[a]=data[a];
   }
 }
 bool TBN::listen(){
@@ -216,9 +233,9 @@ bool TBN::listen(){
       Serial.print("\trx:\t");
     #endif
     long lastByteStarted=millis();
-    while(incomCount<MSGLEN){
+    while(incomCount<MAXMSGLEN){
       //TODO:
-      //if incomCount==1; MSGLEN= the len part of the message
+      //if incomCount==1; MAXMSGLEN= the len part of the message
       if(comRX.available()){
         lastByteStarted=millis();
         int i = (unsigned char)(comRX.read());

@@ -34,6 +34,7 @@ unsigned char s_current=S_CONNECTING;
   #define DEBUGPIN 10
   #define LISTENSTATEDEBUGPIN 11
   #define SERIALDEBUG true
+  #define USEHS false
 
 // Mega 1280 & 2560
 #elif defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
@@ -47,17 +48,22 @@ http://forum.arduino.cc/index.php?topic=46426.0
 
 
   #define TIP 9
-  #define COMPIN 10
+  #define COMPIN 15
   #define TOP 11
   #define DEBUGPIN 40
   #define LISTENSTATEDEBUGPIN 41
   #define SERIALDEBUG true
+  //use hardware serial instead of ss if the pin is any RX pin
+  #define USEHS true
 #endif
 
 
 SendOnlySoftwareSerial    comTX = SendOnlySoftwareSerial(COMPIN);
-ReceiveOnlySoftwareSerial comRX = ReceiveOnlySoftwareSerial(COMPIN);
-
+#if USEHS
+  // ReceiveSerial comRX=Serial3();
+#else
+  ReceiveOnlySoftwareSerial comRX = ReceiveOnlySoftwareSerial(COMPIN);
+#endif
 unsigned char ownID=0;
 
 unsigned char tentativeID=0;
@@ -225,7 +231,11 @@ void TBN::write(unsigned char data [],unsigned char len){
   }
 }
 bool TBN::listen(){
-  if( comRX.available() ){
+  #if USEHS
+    if( Serial3.available() ){
+  #else
+    if( comRX.available() ){
+  #endif
     digitalWrite(TOP,LOW);
     //truncated message timeout mechanism
     unsigned char incomCount=0;
@@ -236,9 +246,18 @@ bool TBN::listen(){
     while(incomCount<MAXMSGLEN){
       //TODO:
       //if incomCount==1; MAXMSGLEN= the len part of the message
+
+    #if USEHS
+      if( Serial3.available() ){
+    #else
       if(comRX.available()){
+    #endif
         lastByteStarted=millis();
+      #if USEHS
+        int i = (unsigned char)(Serial3.read());
+      #else
         int i = (unsigned char)(comRX.read());
+      #endif
         incom[incomCount]=i;
         #if SERIALDEBUG
           Serial.print(String(i,DEC));
@@ -262,14 +281,25 @@ bool TBN::listen(){
 }
 
 void TBN::outputMode(){
-  comRX.end();
+  #if USEHS
+    Serial3.flush();
+    Serial3.end();
+  #else
+    comRX.end();
+  #endif
   pinMode(COMPIN,OUTPUT);
   comTX.begin(BAUDRATE);
 }
 void TBN::inputMode(){
+
   comTX.end();
-  pinMode(COMPIN,INPUT_PULLUP);
-  comRX.begin(BAUDRATE);
+  #if USEHS
+    Serial3.begin(BAUDRATE);
+    Serial3.flush();
+  #else
+    pinMode(COMPIN,INPUT_PULLUP);
+    comRX.begin(BAUDRATE);
+  #endif
 }
 
 

@@ -2,7 +2,7 @@
 #include "SendOnlySoftwareSerial.h"
 #include "ReceiveOnlySoftwareSerial.h"
 #include "TBN.h"
-#define tokenTimeout 30
+#define tokenTimeout 15
 #define BAUDRATE 9600
 
 
@@ -140,7 +140,7 @@ void TBN::loop(){
             digitalWrite(DEBUGPIN,LOW);
             #if SERIALDEBUG
               Serial.print("\ndefinitiveID: ");
-              Serial.print(String(tentativeID,DEC));
+              Serial.print(String(tentativeID,HEX));
             #endif
           }
           //maybe this is not necessary:
@@ -156,7 +156,7 @@ void TBN::loop(){
             tentativeID = vid;
           #if SERIALDEBUG
             Serial.print("\ntentativeID: ");
-            Serial.print(String(tentativeID,DEC));
+            Serial.print(String(tentativeID,HEX));
           #endif
         }
       }
@@ -177,7 +177,7 @@ void TBN::loop(){
         }
       }
       if(listen()){
-        _onReceiveCallback(incom[BN_ORIGIN],incom[BN_HEADER],& incom[BN_PAYLOAD0],incom[BN_HEADER]&0xF);
+        _onReceiveCallback(incom[BN_ORIGIN],incom[BN_HEADER]>>4,& incom[BN_PAYLOAD0],incom[BN_HEADER]&0xF);
         // _midiInCallback(message);
       }
 
@@ -197,9 +197,9 @@ void TBN::loop(){
         for(unsigned char a=0; a<outGoBytesDue; a++){
           buf[a+2]=outgo[a];
         }
-        outGoBytesDue=0;
       }
-      comTX.write(buf, sizeof(buf));
+      comTX.write(buf, outGoBytesDue+2);//bytes due plus headers
+      outGoBytesDue=0;
       inputMode();
       s_current=S_LISTENING;
       // delay(100);
@@ -239,13 +239,12 @@ bool TBN::listen(){
     digitalWrite(TOP,LOW);
     //truncated message timeout mechanism
     unsigned char incomCount=0;
+    unsigned char expectedLen=0;
     #if SERIALDEBUG
       Serial.print("\trx:\t");
     #endif
     long lastByteStarted=millis();
-    while(incomCount<MAXMSGLEN){
-      //TODO:
-      //if incomCount==1; MAXMSGLEN= the len part of the message
+    while((incomCount<expectedLen)||expectedLen==0){
 
     #if USEHS
       if( Serial3.available() ){
@@ -254,13 +253,27 @@ bool TBN::listen(){
     #endif
         lastByteStarted=millis();
       #if USEHS
-        int i = (unsigned char)(Serial3.read());
+        unsigned char i = (unsigned char)(Serial3.read());
       #else
-        int i = (unsigned char)(comRX.read());
+        unsigned char i = (unsigned char)(comRX.read());
       #endif
         incom[incomCount]=i;
+        if(expectedLen==0){
+
+          if(incomCount==BN_HEADER){
+            expectedLen=(i&0xf)+2;//+2 for the two header bytes
+          }
+          if (expectedLen==0 & incomCount>BN_HEADER){
+            //if expectedLen==0 and incomCount>BN_HEADER (means we are reading a string)
+            //if(i=='termination character')
+            //expectedLen=1 (therefore we jump out of loop
+            #if SERIALDEBUG
+              Serial.print("string?");
+            #endif
+          }
+        }
         #if SERIALDEBUG
-          Serial.print(String(i,DEC));
+          Serial.print(String(i,HEX));
           Serial.write('\t');
         #endif
         incomCount++;

@@ -33,7 +33,7 @@ unsigned char s_current=S_CONNECTING;
   #define TOP 5
   #define DEBUGPIN 10
   #define LISTENSTATEDEBUGPIN 11
-  #define SERIALDEBUG true
+  #define SERIALDEBUG false
   #define USEHS false
 
 // Mega 1280 & 2560
@@ -52,7 +52,7 @@ http://forum.arduino.cc/index.php?topic=46426.0
   #define TOP 11
   #define DEBUGPIN 40
   #define LISTENSTATEDEBUGPIN 41
-  #define SERIALDEBUG true
+  #define SERIALDEBUG false
   //use hardware serial instead of ss if the pin is any RX pin
   #define USEHS true
 #endif

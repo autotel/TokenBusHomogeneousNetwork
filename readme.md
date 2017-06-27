@@ -89,4 +89,9 @@ The arduinos should start their activity without input from the node that is con
 
 
 
+#further development ideas
+* the protocol should support a closed token loop somehow. It would remove the token timeout wait at the end of each round, potentially triplicating the frequency of communication. Mabe the token timeout could smaller aswell.
+* When a module detects that a message has been sent and has a token, it should release his token. This would prevent overlapping of messages in case a device took too long to answer to the token causing a token restart.
+
+
 

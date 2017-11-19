@@ -38,6 +38,7 @@ nodes are the pseudonym for the units that run a program that lets them particip
 * header is a byte that indicates the mode of the upcoming data. It is divided in two nibbles: first nibble indicates the mode of the message (broadcasted, addressed, empty, offline). The second nibble indicates the length of the upcoming message in words. The maximum message length is 16*4 bytes. Maybe if the second nibble is F, the listeners will wait for a special termination byte.
 * an offline header is equivalent to a disconnected module. The idea is that a module that is offline or not connected, will generate an offline header by not sending anything. You can also think of this as a timeout of the length of a single byte.
 
+
 # practicalities
 
 ## connection
@@ -84,14 +85,15 @@ The arduinos should start their activity without input from the node that is con
 ## step 5: Message length is defined in the header
 
 ## step 6: Pack the protocol into a library
+* There are still many global variables that should be easy to put into the header file instead
 
 ## step 7: Messages with undefined length, finished with a message terminator
-
-
+* the round speed with three devices goes up to 41 hz when turning debug off. There is still space to upgrade this fw.
 
 #further development ideas
 * the protocol should support a closed token loop somehow. It would remove the token timeout wait at the end of each round, potentially triplicating the frequency of communication. Mabe the token timeout could smaller aswell.
 * When a module detects that a message has been sent and has a token, it should release his token. This would prevent overlapping of messages in case a device took too long to answer to the token causing a token restart.
+* actually, the last module could detect that there is no following module, and thus write a restart byte, preventing the master from waiting for a token timeout
 
 
 

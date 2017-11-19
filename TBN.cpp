@@ -3,7 +3,7 @@
 #include "ReceiveOnlySoftwareSerial.h"
 #include "TBN.h"
 #define tokenTimeout 15
-#define BAUDRATE 9600
+#define BAUDRATE 38400
 
 
 long lastMessageAt=0;
